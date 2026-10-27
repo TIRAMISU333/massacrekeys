@@ -58,7 +58,7 @@ input{font-family:inherit}
 }
 
 /* ============================================================
-   INTRO ANIMATION (REALISTIC)
+   INTRO ANIMATION (REALISTIC & SMOOTH)
    ============================================================ */
 #intro{
   position:fixed;inset:0;z-index:9999;
@@ -74,22 +74,22 @@ input{font-family:inherit}
   width:160px;height:520px;
   margin:-260px 0 0 -80px;
   opacity:0;
-  filter:drop-shadow(0 10px 30px rgba(0,0,0,.95)) drop-shadow(0 0 8px rgba(180,10,30,.15));
+  filter:drop-shadow(0 15px 40px rgba(0,0,0,.95));
   will-change:transform,opacity;
-  animation:knifeSlash 1.1s cubic-bezier(.2, 0, .2, 1) .1s forwards;
+  animation:knifeSlash 1.2s cubic-bezier(.25, .1, .2, 1) .1s forwards;
 }
 .knife{width:100%;height:100%;display:block;transform-origin:50% 50%;
-  animation:knifeBlur 1.1s cubic-bezier(.2, 0, .2, 1) .1s forwards;}
+  animation:knifeBlur 1.2s cubic-bezier(.25, .1, .2, 1) .1s forwards;}
 @keyframes knifeBlur{
   0%{filter:blur(0)}
-  30%{filter:blur(3px)} /* Motion blur */
+  35%{filter:blur(4px)} /* Heavy motion blur */
   60%{filter:blur(1px)}
   100%{filter:blur(0)}
 }
 @keyframes knifeSlash{
-  0%   { transform:translate(70vw,-20vh) rotate(-40deg) scale(0.7); opacity:0; }
+  0%   { transform:translate(60vw,-20vh) rotate(-40deg) scale(0.8); opacity:0; }
   10%  { opacity:1; }
-  50%  { transform:translate(0, 0) rotate(-95deg) scale(1.05); opacity:1; }
+  55%  { transform:translate(0, 0) rotate(-100deg) scale(1.05); opacity:1; }
   100% { transform:translate(-80vw,20vh) rotate(-140deg) scale(0.8); opacity:0; }
 }
 
@@ -103,7 +103,7 @@ input{font-family:inherit}
   stroke-dasharray:100;
   stroke-dashoffset:100;
   filter:drop-shadow(0 0 3px rgba(150,0,15,.8));
-  animation:gashDraw .15s ease-out .6s forwards;
+  animation:gashDraw .15s ease-out .65s forwards;
 }
 @keyframes gashDraw{ to{ stroke-dashoffset:0; } }
 
@@ -362,7 +362,7 @@ main{flex:1;padding:clamp(24px,5vw,56px) clamp(16px,4vw,48px) 60px;max-width:118
 .status.off i{background:var(--red2);box-shadow:0 0 10px var(--red2)}
 
 /* ============================================================
-   MODAL
+   MODAL & CHECKOUT IFRAME
    ============================================================ */
 .modal-backdrop{
   position:fixed;inset:0;z-index:900;
@@ -376,7 +376,7 @@ main{flex:1;padding:clamp(24px,5vw,56px) clamp(16px,4vw,48px) 60px;max-width:118
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .modal{
   width:min(620px,100%);
-  max-height:86vh;
+  max-height:90vh;
   display:flex;flex-direction:column;
   border-radius:18px;
   border:1px solid var(--line-strong);
@@ -396,6 +396,8 @@ main{flex:1;padding:clamp(24px,5vw,56px) clamp(16px,4vw,48px) 60px;max-width:118
   font-size:22px;letter-spacing:.14em;color:#fff;
 }
 .modal-body{padding:22px;overflow-y:auto}
+.modal-body.iframe-mode{padding:0; overflow:hidden; flex:1; display:flex;}
+.modal-body iframe{width:100%; height:600px; border:0; background:#fff;}
 
 /* key manager */
 .km-controls{
@@ -474,6 +476,7 @@ footer a:hover{color:var(--red2)}
 @media (max-width:560px){
   .user-chip .uname{max-width:84px}
   .btn{padding:11px 16px;font-size:12px}
+  .modal-body iframe{height:500px;}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
@@ -492,6 +495,7 @@ footer a:hover{color:var(--red2)}
 <div id="intro" role="presentation" aria-hidden="true">
   
   <svg class="gash-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <!-- Gash path: P0(110,30) -> P1(50,50) -> P2(-10,70) -->
     <path class="gash-line" pathLength="100" d="M 110 30 Q 50 50 -10 70"/>
   </svg>
 
@@ -652,9 +656,6 @@ footer a:hover{color:var(--red2)}
 
 <div id="toast" role="status" aria-live="polite"></div>
 
-<!-- Sell.app Embed Script -->
-<script src="https://cdn.sell.app/embed/script.js" type="module"></script>
-
 <script>
 /* ================================================================
    MASSACRE — app
@@ -782,7 +783,7 @@ function randBytes(n) {
 })();
 
 /* ================================================================
-   2. INTRO ANIMATION (REALISTIC BLOOD MATH)
+   2. INTRO ANIMATION (PERFECT BEZIER BLOOD MATH)
    ================================================================ */
 (function intro() {
   const introEl   = $('#intro');
@@ -792,15 +793,19 @@ function randBytes(n) {
     dripsEl.innerHTML = '';
     const count = window.innerWidth < 600 ? 8 : 15;
     
-    // Quadratic bezier curve: P0=(110,30), P1=(50,50), P2=(-10,70)
-    // x(t) = (1-t)^2 * 110 + 2*(1-t)*t * 50 + t^2 * (-10)
-    // y(t) = (1-t)^2 * 30  + 2*(1-t)*t * 50 + t^2 * 70
+    // Quadratic bezier curve formula for the gash:
+    // P0=(110, 30), P1=(50, 50), P2=(-10, 70)
+    const p0 = { x: 110, y: 30 };
+    const p1 = { x: 50,  y: 50 };
+    const p2 = { x: -10, y: 70 };
     
     for (let i = 0; i < count; i++) {
-      const t = 0.1 + Math.random() * 0.8; 
+      // Restrict t to the visible part of the screen
+      const t = 0.05 + Math.random() * 0.9; 
       
-      const x = Math.pow(1-t, 2) * 110 + 2*(1-t)*t * 50 + Math.pow(t, 2) * (-10);
-      const y = Math.pow(1-t, 2) * 30  + 2*(1-t)*t * 50 + Math.pow(t, 2) * 70;
+      // Calculate exact X and Y on the curve
+      const x = Math.pow(1-t, 2) * p0.x + 2*(1-t)*t * p1.x + Math.pow(t, 2) * p2.x;
+      const y = Math.pow(1-t, 2) * p0.y + 2*(1-t)*t * p1.y + Math.pow(t, 2) * p2.y;
       
       const d = document.createElement('div');
       d.className = 'drip';
@@ -1104,19 +1109,31 @@ function renderKeyCard() {
 }
 
 /* ============================================================
-   6. MODALS & SELL.APP EMBED
+   6. MODALS & EMBEDDED IFRAME CHECKOUT
    ============================================================ */
 const backdrop = $('#modalBackdrop');
 
-function openModal(title, html) {
+function openModal(title, html, isIframe = false) {
   $('#modalTitle').textContent = title;
-  $('#modalBody').innerHTML = html;
+  
+  const body = $('#modalBody');
+  body.innerHTML = html;
+  
+  if (isIframe) {
+    body.classList.add('iframe-mode');
+  } else {
+    body.classList.remove('iframe-mode');
+  }
+  
   backdrop.classList.remove('hidden');
   document.body.classList.add('locked');
 }
+
 function closeModal() {
   backdrop.classList.add('hidden');
   document.body.classList.remove('locked');
+  // Clear iframe to stop background processing/audio if any
+  $('#modalBody').innerHTML = '';
 }
 
 $('#modalClose').addEventListener('click', closeModal);
@@ -1126,33 +1143,12 @@ addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 function openCheckout() {
   if (!user) { openLoginPrompt(); return; }
 
+  // We embed the Sell.app URL directly in an iframe so it stays inside the MASSACRE UI.
   const SELL_APP_URL = "https://massacrekeys.sell.app/product/product-1793139213";
 
   openModal('Secure Checkout', `
-    <div style="text-align:center; padding:20px;">
-      <p class="muted" style="margin-bottom:20px;">
-        Complete your purchase securely below to receive your key instantly.
-      </p>
-      
-      <!-- Sell.app embed button -->
-      <a href="${SELL_APP_URL}" class="btn primary wide sellapp-embed-button" style="text-decoration:none; padding:16px;">
-        Open Checkout ($3.99)
-      </a>
-      
-      <p class="muted" style="font-size:12px; margin-top:20px;">
-        If the checkout overlay doesn't appear, <a href="${SELL_APP_URL}" target="_blank" style="color:var(--red2); text-decoration:underline;">click here to open it in a new tab</a>.
-      </p>
-    </div>
-    <p class="muted" style="font-size:12px; margin-top:16px; text-align:center; border-top:1px solid rgba(255,255,255,.1); padding-top:16px;">
-      Already bought a key? <a href="#" data-act="claim" style="color:var(--red2); text-decoration:none; font-weight:600;">Claim it here</a>.
-    </p>
-  `);
-
-  // Automatically trigger the Sell.app script so it opens inside this modal
-  setTimeout(() => {
-    const btn = $('.sellapp-embed-button');
-    if (btn) btn.click();
-  }, 100);
+    <iframe src="${SELL_APP_URL}" allowtransparency="true" frameborder="0" allow="payment"></iframe>
+  `, true);
 }
 
 function openClaimModal() {
