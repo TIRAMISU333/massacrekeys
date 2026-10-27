@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>MASSACRE — Access Keys</title>
+<title>MASSACRE — Keys</title>
 <meta name="theme-color" content="#06050a" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -757,7 +757,7 @@ footer a:hover{color:var(--red2)}
         <div class="card-top">
           <span class="badge">ACCESS KEY</span>
           <h2>Lifetime Key</h2>
-          <div class="price">$19<small>.99</small></div>
+          <div class="price">$3<small>.99</small></div>
         </div>
         <ul class="feats">
           <li>Instant delivery after checkout</li>
@@ -803,8 +803,6 @@ footer a:hover{color:var(--red2)}
 <script>
 /* ================================================================
    MASSACRE — app
-   ⚠️  OAuth secrets and ownership checks MUST live on a server.
-       This file is a front-end demo only.
    ================================================================ */
 'use strict';
 
@@ -929,7 +927,7 @@ function randBytes(n) {
 })();
 
 /* ================================================================
-   2. INTRO ANIMATION  (knife slash · gash · blood · sparks)
+   2. INTRO ANIMATION
    ================================================================ */
 (function intro() {
   const introEl   = $('#intro');
@@ -939,13 +937,12 @@ function randBytes(n) {
   const cracksEl  = $('.cracks');
   const SVGNS     = 'http://www.w3.org/2000/svg';
 
-  /* ---- blood drips along the gash ---- */
   function buildDrips() {
     dripsEl.innerHTML = '';
     const count = window.innerWidth < 600 ? 11 : 18;
     for (let i = 0; i < count; i++) {
-      const u = 0.03 + Math.random() * 0.94;      // 0..1 along the cut
-      const x = 108 - u * 116;                    // follows M 108 24 Q 50 46 -8 68
+      const u = 0.03 + Math.random() * 0.94;
+      const x = 108 - u * 116;
       const y = 24 + u * 44 + Math.sin(u * Math.PI) * 4;
       const d = document.createElement('div');
       d.className = 'drip';
@@ -959,7 +956,6 @@ function randBytes(n) {
     }
   }
 
-  /* ---- splatter dots ---- */
   function buildSplatter() {
     splatEl.innerHTML = '';
     const n = window.innerWidth < 600 ? 26 : 46;
@@ -976,7 +972,6 @@ function randBytes(n) {
     }
   }
 
-  /* ---- sparks flying from the impact ---- */
   function buildSparks() {
     sparksEl.innerHTML = '';
     const n = 34;
@@ -996,7 +991,6 @@ function randBytes(n) {
     }
   }
 
-  /* ---- cracks radiating from the cut ---- */
   function buildCracks() {
     cracksEl.innerHTML = '';
     const anchors = [[100,27],[86,31],[70,36],[54,41],[38,46],[22,52],[8,58]];
@@ -1038,15 +1032,11 @@ function randBytes(n) {
   buildCracks();
 
   const timer = setTimeout(endIntro, 4750);
-
-  introEl.addEventListener('click', () => {
-    clearTimeout(timer);
-    endIntro();
-  }, { once: true });
+  introEl.addEventListener('click', () => { clearTimeout(timer); endIntro(); }, { once: true });
 })();
 
 /* ================================================================
-   3. AUTH (Discord OAuth2 — implicit grant)
+   3. AUTH (Discord OAuth2)
    ================================================================ */
 function saveSession(u) {
   user = u;
@@ -1070,11 +1060,44 @@ function isOwner() {
   return names.some(n => OWNER_USERNAMES.includes(n));
 }
 
+function openSetupModal() {
+  const currentUrl = location.origin + location.pathname;
+  const isFile = location.protocol === 'file:';
+  
+  openModal('Discord Login Setup', `
+    <p class="muted" style="margin-bottom:16px;">
+      Discord requires the exact URL you are using to be whitelisted in your Developer Portal.
+    </p>
+    
+    ${isFile ? `
+      <div style="background:rgba(255,45,69,.1); border:1px solid rgba(255,45,69,.4); padding:14px; border-radius:8px; margin-bottom:16px;">
+        <strong style="color:var(--red2); font-size:13px;">⚠️ You are opening a local file</strong>
+        <p class="muted" style="font-size:12px; margin-top:6px;">
+          You must run this on a local server (like VS Code Live Server or Python) or a real website.
+        </p>
+      </div>
+    ` : ''}
+
+    <p class="muted" style="font-size:12px; margin-bottom:8px;">1. Copy this exact URL:</p>
+    <div class="keybox" style="margin-top:0; margin-bottom:16px; justify-content:flex-start">
+      <code style="font-size:12px;">${currentUrl}</code>
+    </div>
+    
+    <p class="muted" style="font-size:12px; margin-bottom:8px;">2. Go to the <a href="https://discord.com/developers/applications/${CLIENT_ID}/oauth2" target="_blank" style="color:var(--red2)">Discord Developer Portal</a>.</p>
+    <p class="muted" style="font-size:12px; margin-bottom:16px;">3. Under <strong>OAuth2 > Redirects</strong>, add the URL and hit Save.</p>
+
+    <div style="display:flex; gap:10px;">
+      <button class="btn primary" style="flex:1" onclick="closeModal()">Got it</button>
+    </div>
+  `);
+}
+
 function login() {
   if (location.protocol === 'file:') {
-    toast('Open the site over http:// or https:// — Discord blocks file://', 5000);
+    openSetupModal();
     return;
   }
+  
   const state = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
   sessionStorage.setItem('massacre.state', state);
 
@@ -1091,9 +1114,21 @@ function login() {
 
 async function handleOAuthRedirect() {
   const hash = location.hash.slice(1);
-  if (!hash || !hash.includes('access_token')) return;
+  if (!hash) return;
 
-  const p     = new URLSearchParams(hash);
+  const p = new URLSearchParams(hash);
+  
+  if (p.get('error')) {
+    const desc = p.get('error_description') || p.get('error');
+    history.replaceState(null, '', location.pathname + location.search);
+    if (desc.toLowerCase().includes('redirect_uri')) {
+      openSetupModal();
+    } else {
+      toast('Login failed: ' + desc, 5000);
+    }
+    return;
+  }
+
   const token = p.get('access_token');
   const state = p.get('state');
   const saved = sessionStorage.getItem('massacre.state');
@@ -1254,7 +1289,10 @@ function renderKeyCard() {
   if (!code) {
     box.innerHTML =
       '<p class="muted">You don\'t own a key yet. Grab one and it will appear here instantly.</p>' +
-      '<button class="btn primary wide" style="margin-top:18px" data-act="buy">Buy a Key</button>';
+      '<div style="display:flex; gap:8px; margin-top:18px; flex-wrap:wrap;">' +
+        '<button class="btn primary" style="flex:1" data-act="buy">Buy a Key</button>' +
+        '<button class="btn ghost" style="flex:1" data-act="claim">Claim Key</button>' +
+      '</div>';
     return;
   }
 
@@ -1270,9 +1308,9 @@ function renderKeyCard() {
     '</p>';
 }
 
-/* ================================================================
+/* ============================================================
    6. MODALS
-   ================================================================ */
+   ============================================================ */
 const backdrop = $('#modalBackdrop');
 
 function openModal(title, html) {
@@ -1293,34 +1331,63 @@ addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 function openCheckout() {
   if (!user) { openLoginPrompt(); return; }
 
+  // Your live Sell.app link
+  const SELL_APP_LINK = "https://massacrekeys.sell.app/product/product-1793139213"; 
+
   openModal('Checkout', `
     <p class="muted" style="margin-bottom:18px">
       You're buying <strong style="color:#fff">1 × MASSACRE Lifetime Key</strong> for
-      <strong style="color:#fff">$19.99</strong>.
+      <strong style="color:#fff">$3.99</strong>.
     </p>
-    <div class="keybox" style="justify-content:flex-start">
-      <span class="muted" style="font-size:12px">
-        ⚠️ Demo checkout — wire this button to Stripe / PayPal / your backend here.
-      </span>
+    
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <a href="${SELL_APP_LINK}" target="_blank" class="btn primary wide" style="text-decoration:none; padding:16px;">
+        Pay with Card / CashApp
+      </a>
+      <p class="muted" style="font-size:12px; text-align:center;">
+        Secure checkout powered by Sell.app. You will receive your key via email instantly.
+      </p>
     </div>
+
+    <p class="muted" style="font-size:12px; margin-top:24px; text-align:center; border-top:1px solid rgba(255,255,255,.1); padding-top:16px;">
+      Already bought a key? <a href="#" data-act="claim" style="color:var(--red2); text-decoration:none; font-weight:600;">Click here to claim it</a>.
+    </p>
+  `);
+}
+
+function openClaimModal() {
+  if (!user) { openLoginPrompt(); return; }
+
+  openModal('Claim Your Key', `
+    <p class="muted" style="margin-bottom:16px;">
+      Paste the key you received from Sell.app below to link it to your Discord account.
+    </p>
+    
+    <div class="field" style="width:100%;">
+      <input id="claimInput" type="text" placeholder="MASSACRE-XXXX-XXXX-XXXX" style="width:100%; text-transform:uppercase;" />
+    </div>
+
     <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap">
-      <button class="btn primary" style="flex:1" id="confirmBuy">Complete Purchase</button>
+      <button class="btn primary" style="flex:1" id="confirmClaim">Claim Key</button>
       <button class="btn ghost" data-act="close">Cancel</button>
     </div>
   `);
 
-  $('#confirmBuy').addEventListener('click', () => {
+  $('#confirmClaim').addEventListener('click', () => {
+    const input = $('#claimInput').value.trim().toUpperCase();
+    if (!input) { toast('Please enter a key.'); return; }
+
     const existing = getMyKey();
     if (existing) {
       closeModal();
-      toast('You already own a key.');
+      toast('You already have a key linked to this account.');
       return;
     }
-    const [entry] = generateKeys(1, 'purchase');
-    assignKeyToUser(entry.code);
+
+    assignKeyToUser(input);
     renderAll();
     closeModal();
-    toast('Purchase complete — your key is ready.');
+    toast('Key claimed successfully!');
   });
 }
 
@@ -1406,9 +1473,9 @@ async function copyText(text) {
   }
 }
 
-/* ================================================================
+/* ============================================================
    7. EVENT WIRING
-   ================================================================ */
+   ============================================================ */
 $('#loginBtn').addEventListener('click', login);
 $('#logoutBtn').addEventListener('click', logout);
 $('#settingsBtn').addEventListener('click', openKeyManager);
@@ -1428,13 +1495,14 @@ document.addEventListener('click', e => {
 
   if (act === 'login')  login();
   if (act === 'buy')    openCheckout();
+  if (act === 'claim')  openClaimModal();
   if (act === 'close')  closeModal();
   if (act === 'copy')   copyText(el.dataset.code).then(() => toast('Key copied to clipboard.'));
 });
 
-/* ================================================================
+/* ============================================================
    8. BOOT
-   ================================================================ */
+   ============================================================ */
 (async function boot() {
   loadSession();
   await handleOAuthRedirect();
